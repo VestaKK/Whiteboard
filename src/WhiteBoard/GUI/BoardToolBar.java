@@ -1,15 +1,13 @@
-package WhiteBoard;
+package WhiteBoard.GUI;
 
-import net.sourceforge.argparse4j.ArgumentParsers;
+import WhiteBoard.Types.ShapeType;
+import WhiteBoard.Types.StrokeType;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
-import javax.swing.plaf.ColorChooserUI;
 import java.awt.*;
 import java.awt.event.*;
-import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.IOException;
 
 public class BoardToolBar extends JToolBar implements ActionListener {
     JButton primary;

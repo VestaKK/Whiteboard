@@ -1,4 +1,4 @@
-package WhiteBoard;
+package WhiteBoard.Types;
 
 public enum StrokeType {
     NONE,

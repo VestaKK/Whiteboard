@@ -1,15 +1,20 @@
+import WhiteBoard.GUI.Whiteboard;
+import WhiteBoard.WhiteboardClient;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 
-public class ServerMain {
+import java.io.IOException;
+import java.net.Socket;
+
+public class CreateMain {
     public static void main(String[] args) {
 
         // Build Arguments
         ArgumentParser parser = ArgumentParsers.newFor("CreateWhiteBoard").build()
                 .defaultHelp(true)
-                .description("Dictionary Client");
+                .description("Create Whiteboard");
         parser.addArgument("<ip>")
                 .help("Server IP Address")
                 .type(String.class);
@@ -28,6 +33,13 @@ public class ServerMain {
 
         String ip = ns.getString("<ip>");
         Integer port = ns.getInt("<port>");
-    }
+
+
+        try (Socket socket = new Socket(ip, port)) {
+            WhiteboardClient client = new WhiteboardClient(socket, WhiteboardClient.Role.HOST);
+            client.start();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
     }
 }

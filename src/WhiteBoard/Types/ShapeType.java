@@ -1,4 +1,4 @@
-package WhiteBoard;
+package WhiteBoard.Types;
 
 import java.io.Serializable;
 

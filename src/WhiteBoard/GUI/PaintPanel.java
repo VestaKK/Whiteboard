@@ -1,10 +1,18 @@
-package WhiteBoard;
+package WhiteBoard.GUI;
+
+import WhiteBoard.Payloads.DrawFree;
+import WhiteBoard.Payloads.DrawShape;
+import WhiteBoard.Types.ShapeType;
+import WhiteBoard.Types.StrokeType;
+import WhiteBoard.Utilities;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
 
 public class PaintPanel extends JPanel {
     Color primary;
@@ -20,6 +28,8 @@ public class PaintPanel extends JPanel {
     private Color fillColor;
     private int x1, y1;
     private int x2, y2;
+    private List<Point> points;
+    private static final int POINT_BUFFER_LENGTH = 25;
 
     public PaintPanel(int width, int height) {
         super();
@@ -36,6 +46,8 @@ public class PaintPanel extends JPanel {
 
         this.drawColor = Color.WHITE;
         this.fillColor = Color.WHITE;
+
+        this.points = new ArrayList<>();
 
         MousePaintAdaptor mousePaintAdaptor = new MousePaintAdaptor(this);
         this.addMouseListener(mousePaintAdaptor);
@@ -110,21 +122,90 @@ public class PaintPanel extends JPanel {
         }
     }
 
+    public synchronized void drawFree(DrawFree p) {
+        if (canvas == null) return;
+        graphics2D.setColor(p.drawColour);
+        for (Point point : p.points) {
+            graphics2D.fillRect(point.x - p.cursorSize/2, point.y - p.cursorSize/2, p.cursorSize, p.cursorSize);
+        }
+    }
+
+    public synchronized void drawShape(DrawShape p) {
+        if (canvas == null) return;
+        Utilities.drawShape(
+                this.graphics2D,
+                p.shapeType,
+                p.drawColour,
+                p.fillColour,
+                p.cursorSize,
+                p.shouldFill,
+                p.x1,
+                p.y1,
+                p.x2,
+                p.y2);
+    }
+
+    public synchronized void drawCanvas(Graphics g) {
+        if (canvas == null) return;
+        g.drawImage(canvas, 0, 0, null);
+    }
+
+    public synchronized void loadCanvas(BufferedImage canvas) {
+        this.canvas = canvas;
+        graphics2D = canvas.createGraphics();
+        graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        graphics2D.setPaint(Color.white);
+        graphics2D.fillRect(0, 0, getSize().width, getSize().height);
+        graphics2D.setColor(drawColor);
+    }
+
     public void paintComponent(Graphics g) {
         if (canvas == null) {
-            canvas = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_ARGB);
-            graphics2D = canvas.createGraphics();
-            graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            graphics2D.setPaint(Color.white);
-            graphics2D.fillRect(0, 0, getSize().width, getSize().height);
-            graphics2D.setColor(drawColor);
+            loadCanvas(new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_ARGB));
         }
 
-        g.drawImage(canvas, 0, 0, null);
+        drawCanvas(g);
 
-        if (strokeType == StrokeType.SHAPE && shapePreview) {
+        synchronized (this) {
             Graphics2D preview = (Graphics2D) g;
-            drawShape(preview);
+            switch (strokeType) {
+                case PENCIL -> {
+                    preview.setStroke(new BasicStroke(cursorSize));
+                    preview.setColor(drawColor);
+                    for (Point point : points) {
+                        preview.fillRect((point.x-cursorSize/2), (point.y-cursorSize/2), cursorSize, cursorSize);
+                    }
+                }
+                case ERASER -> {
+                    preview.setStroke(new BasicStroke(cursorSize));
+                    preview.setColor(Color.WHITE);
+                    for (Point point : points) {
+                        preview.fillRect((point.x-cursorSize/2), (point.y-cursorSize/2), cursorSize, cursorSize);
+                    }
+                }
+                case SHAPE -> {
+                    Utilities.drawShape(preview, shapeType, drawColor, fillColor,cursorSize, shouldFill, x1, y1, x2, y2);
+                }
+            }
+            switch (strokeType) {
+                case PENCIL -> {
+                    preview.setStroke(new BasicStroke(cursorSize));
+                    preview.setColor(drawColor);
+                    for (Point point : points) {
+                        preview.fillRect((point.x-cursorSize/2), (point.y-cursorSize/2), cursorSize, cursorSize);
+                    }
+                }
+                case ERASER -> {
+                    preview.setStroke(new BasicStroke(cursorSize));
+                    preview.setColor(Color.WHITE);
+                    for (Point point : points) {
+                        preview.fillRect((point.x-cursorSize/2), (point.y-cursorSize/2), cursorSize, cursorSize);
+                    }
+                }
+                case SHAPE -> {
+                    Utilities.drawShape(preview, shapeType, drawColor, fillColor,cursorSize, shouldFill, x1, y1, x2, y2);
+                }
+            }
         }
     }
 
@@ -158,14 +239,16 @@ public class PaintPanel extends JPanel {
             switch (strokeType) {
                 case NONE -> {}
                 case PENCIL -> {
+                    points.add(new Point(x2, y2));
                     graphics2D.setStroke(new BasicStroke(cursorSize));
                     graphics2D.setColor(drawColor);
-                    graphics2D.fillRect((x2-cursorSize/2), (y2-cursorSize/2), cursorSize, cursorSize);
+                    // graphics2D.fillRect((x2-cursorSize/2), (y2-cursorSize/2), cursorSize, cursorSize);
                 }
                 case ERASER -> {
+                    points.add(new Point(x2, y2));
                     graphics2D.setStroke(new BasicStroke(cursorSize));
                     graphics2D.setColor(Color.WHITE);
-                    graphics2D.fillRect((x2-cursorSize/2), (y2-cursorSize/2), cursorSize, cursorSize);
+                    // graphics2D.fillRect((x2-cursorSize/2), (y2-cursorSize/2), cursorSize, cursorSize);
                 }
                 case SHAPE -> {
                     shapePreview = true;
@@ -181,18 +264,28 @@ public class PaintPanel extends JPanel {
                     y1 = y2;
                     x2 = e.getX();
                     y2 = e.getY();
-                    graphics2D.setStroke(new BasicStroke(cursorSize));
-                    graphics2D.setColor(drawColor);
-                    graphics2D.fillRect((x2-cursorSize/2), (y2-cursorSize/2), cursorSize, cursorSize);
+                    points.add(new Point(x2, y2));
+                    if (points.size() > POINT_BUFFER_LENGTH) {
+                        // client send thing
+                        points.clear();
+                    }
+                    // graphics2D.setStroke(new BasicStroke(cursorSize));
+                    // graphics2D.setColor(drawColor);
+                    // graphics2D.fillRect((x2-cursorSize/2), (y2-cursorSize/2), cursorSize, cursorSize);
                 }
                 case ERASER -> {
                     x1 = x2;
                     y1 = y2;
                     x2 = e.getX();
                     y2 = e.getY();
-                    graphics2D.setStroke(new BasicStroke(cursorSize));
-                    graphics2D.setColor(Color.WHITE);
-                    graphics2D.fillRect((x2-cursorSize/2), (y2-cursorSize/2), cursorSize, cursorSize);
+                    points.add(new Point(x2, y2));
+                    if (points.size() > POINT_BUFFER_LENGTH) {
+                        // client send thing
+                        points.clear();
+                    }
+                    // graphics2D.setStroke(new BasicStroke(cursorSize));
+                    // graphics2D.setColor(Color.WHITE);
+                    // graphics2D.fillRect((x2-cursorSize/2), (y2-cursorSize/2), cursorSize, cursorSize);
                 }
                 case SHAPE -> {
                     x2 = e.getX();
@@ -205,11 +298,20 @@ public class PaintPanel extends JPanel {
         public void mouseReleased(MouseEvent e) {
             if (strokeType == StrokeType.SHAPE) {
                 shapePreview = false;
-                drawShape(graphics2D);
+                // client send thing
+                Utilities.drawShape(graphics2D, shapeType, drawColor, fillColor,cursorSize, shouldFill, x1, y1, x2, y2);
+
+            } else if (!points.isEmpty()) {
+                // client send thing
             }
+
+            points.clear();
+
             x1 = x2;
             y1 = y2;
             repaint();
         }
     }
+
+
 }
